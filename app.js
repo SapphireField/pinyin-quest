@@ -410,7 +410,6 @@ function renderDoorGrid(totalRooms, unlocked, prog){
     ]);
 
     // Add subtle tooltip via title
- it's okay
     door.setAttribute('title', describeRoom(i, world));
     cells.push(door);
   }
@@ -465,9 +464,8 @@ function renderRoom(roomNo){
   return wrap;
 }
 
-function completeRoom(worldId, roomNo, extra={}){
+function completeRoom(worldId, roomNo){
   const prog = ensureWorldProgress(STATE, worldId);
-  const firstTime = !prog.completedRooms[roomNo];
   prog.completedRooms[roomNo] = true;
 
   // Unlock next room
@@ -518,14 +516,14 @@ function vocabQuest(world, opts){
         const label = (promptMode==='p2m') ? c.meaning : c.pinyin;
         return h('div',{class:'choice', onClick:()=>{
           const isCorrect = c.id === target.id;
-          markChoice(isCorrect, c.id);
+          markChoice(isCorrect);
           scheduleSRS(STATE, target.id, isCorrect);
         }},[label]);
       }))
     ]),
     h('div',{class:'footerBar', style:'margin-top:10px;'},[
       h('button',{class:'btn', onClick:()=>nav('#/')},['Back']),
-      h('button',{class:'btn primary', id:'finishBtn', onClick:()=>{
+      h('button',{class:'btn primary', onClick:()=>{
         completeRoom(world.id, currentRoomNo());
         nav('#/');
       }},['Finish Room'])
@@ -542,16 +540,10 @@ function vocabQuest(world, opts){
       const match = (promptMode==='p2m') ? (txt===target.meaning) : (txt===target.pinyin);
       if(match) n.classList.add('correct');
     });
-    if(!isCorrect){
-      // mark clicked wrong
-      // best-effort
-      toast('Not quite. Review and finish the room.');
-    }else{
-      toast('Correct!');
-    }
+    toast(isCorrect ? 'Correct!' : 'Not quite. Review and finish the room.');
   }
 
-  // In boss mode, we can show a second quick question to increase value.
+  // In boss mode, show a second quick block (lightweight)
   if(mixed){
     const extra = h('div',{class:'question'},[
       h('div',{class:'prompt'},['Bonus: pick the correct meaning for another word.']),
@@ -582,7 +574,8 @@ function soundQuest(world){
       h('div',{class:'choices'}, choices.map(c=>h('div',{class:'choice', onClick:()=>{
         const ok = c===target.g;
         toast(ok ? 'Correct!' : 'Try again next time.');
-        scheduleSoundReward(ok);
+        if(ok) STATE.economy.coins += 2;
+        saveState(STATE);
         mark(ok, c);
       }},[c])))
     ]),
@@ -598,11 +591,6 @@ function soundQuest(world){
       if(n.textContent===target.g) n.classList.add('correct');
       if(n.textContent===picked && !ok) n.classList.add('wrong');
     });
-  }
-  function scheduleSoundReward(ok){
-    // light reward to encourage
-    if(ok) STATE.economy.coins += 2;
-    saveState(STATE);
   }
   return wrap;
 }
@@ -666,7 +654,6 @@ function recorderUI(){
         audio.src = URL.createObjectURL(blob);
         audio.classList.remove('hidden');
         status.textContent = 'Recording saved. Play it back.';
-        // stop tracks
         stream.getTracks().forEach(t=>t.stop());
       };
       mediaRecorder.start();
@@ -693,7 +680,6 @@ function patternQuest(world){
   const abb = world.patterns?.abb?.length ? world.patterns.abb : ['亮晶晶','笑嘻嘻','绿油油'];
   const target = abb[randInt(0, abb.length-1)];
   const good = target;
-  // create distractors by slight edits
   const distractors = makePatternDistractors(target);
   const choices = shuffle([good, ...distractors].slice(0,4));
 
@@ -727,7 +713,6 @@ function patternQuest(world){
 }
 
 function makePatternDistractors(word){
-  // try to produce 3 plausible wrong forms
   const chars = [...word];
   if(chars.length<3) return [''];
   const a = chars[0];
@@ -746,7 +731,6 @@ function secretRewardQuest(world){
   ]);
   const q = vocabQuest(world, {mixed:true});
   wrap.appendChild(q);
-  // extra reward on completion is handled in completeRoom() via secret bonus
   return wrap;
 }
 
@@ -773,24 +757,14 @@ function renderTimeTrial(world, prog){
   const stage = h('div',{class:'question'},[]);
   wrap.appendChild(stage);
 
-  const footer = h('div',{class:'footerBar', style:'margin-top:10px;'},[
-    h('button',{class:'btn', onClick:()=>nav('#/')},['Back']),
-    h('button',{class:'btn primary', id:'ttFinish', onClick:()=>{}},['Finish'])
-  ]);
-  wrap.appendChild(footer);
-
   function renderQ(){
     stage.innerHTML='';
     const q = questions[qIndex];
-    stage.appendChild(h('div',{class:'prompt'},[`(${qIndex+1}/3) Meaning for “${q.target.pinyin}” ?`]))
+    stage.appendChild(h('div',{class:'prompt'},[`(${qIndex+1}/3) Meaning for “${q.target.pinyin}” ?`]));
     const choices = h('div',{class:'choices'}, q.pool.map(c=>h('div',{class:'choice', onClick:()=>{
       const ok = c.id===q.target.id;
-      if(ok){
-        correctCount += 1;
-        toast('Correct');
-      }else{
-        toast('Wrong');
-      }
+      if(ok){ correctCount += 1; toast('Correct'); }
+      else { toast('Wrong'); }
       scheduleSRS(STATE, q.target.id, ok);
       qIndex += 1;
       if(qIndex<3) renderQ();
@@ -810,9 +784,9 @@ function renderTimeTrial(world, prog){
     saveState(STATE);
 
     stage.innerHTML='';
-    stage.appendChild(h('div',{class:'prompt'},[`Done! Time: ${(ms/1000).toFixed(2)}s • Correct: ${correctCount}/3`]))
-    stage.appendChild(h('div',{class:'small'},[improved ? 'New personal best! Bonus awarded.' : 'Try again tomorrow to beat your best time.']))
-    stage.appendChild(h('div',{class:'small', style:'margin-top:6px;'},[`Reward: +${reward} coins`]))
+    stage.appendChild(h('div',{class:'prompt'},[`Done! Time: ${(ms/1000).toFixed(2)}s • Correct: ${correctCount}/3`]));
+    stage.appendChild(h('div',{class:'small'},[improved ? 'New personal best! Bonus awarded.' : 'Try again tomorrow to beat your best time.']));
+    stage.appendChild(h('div',{class:'small', style:'margin-top:6px;'},[`Reward: +${reward} coins`]));
   }
 
   renderQ();
@@ -862,7 +836,7 @@ function renderImport(){
 
   const right = h('div',{class:'card'},[
     h('h2',{},['Template + Tips']),
-    h('p',{},['Paste the lesson packet’s sections into the fields. Start pinyin-first for your son; keep Hanzi optional.']),
+    h('p',{},['Paste the lesson packet’s sections into the fields. Start pinyin-first; keep Hanzi optional.']),
     h('div',{class:'small'},['JSON fields: title, weekLabel, phonicsFocus, vocab[], textLines[], characters[], patterns.abb[], grammarPoints[].']),
     h('hr'),
     h('pre',{style:'white-space:pre-wrap; font-family:var(--mono); font-size:12px; margin:0;'},[JSON.stringify(jsonTemplate(), null, 2)]),
@@ -1044,7 +1018,7 @@ function renderStats(){
               render();
             }},['Delete'])
           ])
-        ])
+        ]);
       })
     ])
   ]);
