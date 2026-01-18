@@ -3,6 +3,7 @@
    - Data stored in localStorage.
    - Kid-friendly horror ambience + Door-run levels.
 */
+console.log("APP.JS LOADED");
 
 const LS_KEY = 'pinyin_quest_v1';
 
