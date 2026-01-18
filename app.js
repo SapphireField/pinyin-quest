@@ -6,6 +6,30 @@
 
 const LS_KEY = 'pinyin_quest_v1';
 
+// Some browsers (or strict privacy settings) can block localStorage when opening
+// files directly from disk (file://). We gracefully fall back to in-memory state
+// and show a warning instead of rendering a blank page.
+let storageBlocked = false;
+let memStore = null;
+
+function safeGet(key){
+  try{
+    return localStorage.getItem(key);
+  }catch(e){
+    storageBlocked = true;
+    return memStore;
+  }
+}
+
+function safeSet(key, val){
+  try{
+    localStorage.setItem(key, val);
+  }catch(e){
+    storageBlocked = true;
+    memStore = val;
+  }
+}
+
 function todayISO(){
   const d = new Date();
   const tzOff = d.getTimezoneOffset();
@@ -17,7 +41,7 @@ function clamp(n,min,max){ return Math.max(min, Math.min(max,n)); }
 function randInt(a,b){ return Math.floor(Math.random()*(b-a+1))+a; }
 
 function loadState(){
-  const raw = localStorage.getItem(LS_KEY);
+  const raw = safeGet(LS_KEY);
   if(!raw){
     return defaultState();
   }
@@ -30,7 +54,7 @@ function loadState(){
 }
 
 function saveState(s){
-  localStorage.setItem(LS_KEY, JSON.stringify(s));
+  safeSet(LS_KEY, JSON.stringify(s));
 }
 
 function defaultState(){
@@ -263,6 +287,9 @@ function toast(msg){
 
 function renderHeader(){
   const world = getActiveWorld(STATE);
+  const warn = storageBlocked
+    ? h('div',{class:'pill warn', title:'Your browser is blocking local storage. Progress will not persist after you close the tab. Open the app via http://localhost (recommended) or GitHub Pages.'},['⚠ Storage blocked: progress won\'t save'])
+    : null;
   return h('div',{class:'header'},[
     h('div',{class:'brand'},[
       h('div',{class:'logo'}),
@@ -272,6 +299,7 @@ function renderHeader(){
       ])
     ]),
     h('div',{class:'nav'},[
+      warn,
       h('button',{class:'btn primary', onClick:()=>nav('#/')},['Door Run']),
       h('button',{class:'btn', onClick:()=>nav('#/import')},['Lesson Import']),
       h('button',{class:'btn', onClick:()=>nav('#/stats')},['Stats']),

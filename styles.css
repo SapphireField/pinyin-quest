@@ -163,6 +163,11 @@ body::before{
   font-size: 12px;
 }
 
+.pill.warn{
+  border-color: rgba(255,107,107,.35);
+  background: rgba(255,107,107,.10);
+}
+
 .formRow{display:grid; gap:10px; grid-template-columns:1fr 1fr;}
 @media (max-width: 940px){.formRow{grid-template-columns:1fr}}
 
